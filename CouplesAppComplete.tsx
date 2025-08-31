@@ -1,7 +1,4 @@
-# Create the complete production-ready React component with real Firebase integration
 
-# 1. Main React Component with Firebase Integration
-react_component = '''
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -133,7 +130,7 @@ export default function CouplesAppComplete() {
         if (userData.coupleId) {
           setCoupleId(userData.coupleId);
           setUserName(userData.name || "");
-          
+
           // Load couple data
           const coupleDoc = await getDoc(doc(db, "couples", userData.coupleId));
           if (coupleDoc.exists()) {
@@ -175,12 +172,12 @@ export default function CouplesAppComplete() {
 
     setLoading(true);
     setError(null);
-    
+
     try {
       const code = generateInviteCode();
       const coupleId = generateId();
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-      
+
       // Create couple document
       await setDoc(doc(db, "couples", coupleId), {
         inviteCode: code,
@@ -206,7 +203,7 @@ export default function CouplesAppComplete() {
       setInviteCode(code);
       setCoupleId(coupleId);
       setAppState("create");
-      
+
       // Listen for partner joining
       setupCoupleListener(coupleId);
     } catch (err: any) {
@@ -233,10 +230,10 @@ export default function CouplesAppComplete() {
       setError("Please wait for app to load");
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       // Find couple by invite code
       const couplesQuery = query(
@@ -244,9 +241,9 @@ export default function CouplesAppComplete() {
         where("inviteCode", "==", inputCode),
         where("active", "==", true)
       );
-      
+
       const querySnapshot = await getDocs(couplesQuery);
-      
+
       if (querySnapshot.empty) {
         setError("Invalid invite code. Please check and try again.");
         return;
@@ -254,7 +251,7 @@ export default function CouplesAppComplete() {
 
       const coupleDoc = querySnapshot.docs[0];
       const coupleData = coupleDoc.data();
-      
+
       // Check if couple is full
       if (coupleData.memberCount >= 2) {
         setError("This couple is already full.");
@@ -268,7 +265,7 @@ export default function CouplesAppComplete() {
       }
 
       const coupleId = coupleDoc.id;
-      
+
       // Update couple document with new member
       await setDoc(doc(db, "couples", coupleId), {
         ...coupleData,
@@ -294,7 +291,7 @@ export default function CouplesAppComplete() {
       setPartnerId(coupleData.creatorId);
       setPartnerName(coupleData.creatorName);
       setAppState("paired");
-      
+
       // Set up real-time listeners
       setupPresenceTracking(user.uid, coupleData.creatorId);
       setupMemoriesListener(coupleId);
@@ -338,23 +335,23 @@ export default function CouplesAppComplete() {
     if (presenceUnsubscribe.current) {
       presenceUnsubscribe.current();
     }
-    
+
     try {
       const userStatusRef = ref(rtdb, `status/${userId}`);
       const partnerStatusRef = ref(rtdb, `status/${partnerId}`);
-      
+
       // Set user as online
       set(userStatusRef, {
         state: "online",
         last_changed: rtdbServerTimestamp()
       });
-      
+
       // Set user as offline when disconnected
       onDisconnect(userStatusRef).set({
         state: "offline",
         last_changed: rtdbServerTimestamp()
       });
-      
+
       // Listen for partner's status
       presenceUnsubscribe.current = onValue(partnerStatusRef, (snapshot) => {
         const status = snapshot.val();
@@ -379,13 +376,13 @@ export default function CouplesAppComplete() {
     if (memoriesUnsubscribe.current) {
       memoriesUnsubscribe.current();
     }
-    
+
     try {
       const memoriesQuery = query(
         collection(db, "couples", coupleId, "memories"),
         orderBy("timestamp", "desc")
       );
-      
+
       memoriesUnsubscribe.current = onSnapshot(memoriesQuery, (snapshot) => {
         const memoriesData: Memory[] = [];
         snapshot.forEach((doc) => {
@@ -412,10 +409,10 @@ export default function CouplesAppComplete() {
   // Handle adding a new memory
   const handleAddMemory = async () => {
     if (!newMemory.trim() || !user || !coupleId) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const memoryData = {
         text: newMemory,
@@ -424,9 +421,9 @@ export default function CouplesAppComplete() {
         timestamp: serverTimestamp(),
         imageUrl: imagePreview || null
       };
-      
+
       await addDoc(collection(db, "couples", coupleId, "memories"), memoryData);
-      
+
       setNewMemory("");
       setImagePreview(null);
     } catch (err) {
@@ -462,11 +459,11 @@ export default function CouplesAppComplete() {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    
+
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
-    
+
     return date.toLocaleDateString();
   };
 
@@ -482,7 +479,7 @@ export default function CouplesAppComplete() {
       if (coupleUnsubscribe.current) {
         coupleUnsubscribe.current();
       }
-      
+
       // Set user as offline
       if (user) {
         const userStatusRef = ref(rtdb, `status/${user.uid}`);
@@ -532,7 +529,7 @@ export default function CouplesAppComplete() {
             <h1 className="text-2xl font-bold text-pink-600">CoupleConnect</h1>
           </div>
           <p className="text-sm text-pink-500">Share memories with your special someone</p>
-          
+
           {/* Connection Status */}
           {appState === "paired" && (
             <div className="flex items-center justify-center gap-1 mt-2">
@@ -675,7 +672,7 @@ export default function CouplesAppComplete() {
                     maxLength={6}
                     value={inputCode}
                     onChange={(e) => {
-                      setInputCode(e.target.value.replace(/\\D/g, ''));
+                      setInputCode(e.target.value.replace(/\D/g, ''));
                       setError(null);
                     }}
                     className="text-center text-2xl tracking-widest"
@@ -856,228 +853,3 @@ export default function CouplesAppComplete() {
     </div>
   );
 }
-'''
-
-# 2. Firebase Security Rules for Firestore
-firestore_rules = '''rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    
-    // User documents - users can only access their own data
-    match /users/{userId} {
-      allow create: if request.auth != null;
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Couples collection
-    match /couples/{coupleId} {
-      // Allow authenticated users to create couple documents
-      allow create: if request.auth != null;
-      
-      // Allow read/write if user is a member of the couple
-      allow read, write: if request.auth != null && (
-        resource.data.members.keys().hasAny([request.auth.uid]) ||
-        request.resource.data.members.keys().hasAny([request.auth.uid])
-      );
-      
-      // Memories subcollection - only couple members can access
-      match /memories/{memoryId} {
-        allow read, write: if request.auth != null && 
-          get(/databases/$(database)/documents/couples/$(coupleId)).data.members.keys().hasAny([request.auth.uid]);
-      }
-    }
-  }
-}'''
-
-# 3. Firebase Realtime Database Rules
-rtdb_rules = '''{
-  "rules": {
-    "status": {
-      "$uid": {
-        ".read": true,
-        ".write": "$uid === auth.uid"
-      }
-    }
-  }
-}'''
-
-# 4. Package.json dependencies
-package_json = '''{
-  "name": "couples-app-firebase",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "react": "^18",
-    "react-dom": "^18",
-    "next": "14.0.0",
-    "firebase": "^10.7.1",
-    "lucide-react": "^0.292.0",
-    "@radix-ui/react-avatar": "^1.0.4",
-    "@radix-ui/react-label": "^2.0.2",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.0.0",
-    "tailwind-merge": "^2.0.0"
-  },
-  "devDependencies": {
-    "typescript": "^5",
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "autoprefixer": "^10.0.1",
-    "postcss": "^8",
-    "tailwindcss": "^3.3.0",
-    "eslint": "^8",
-    "eslint-config-next": "14.0.0"
-  }
-}'''
-
-# 5. Setup Instructions
-setup_instructions = '''# Complete Couples App with Firebase - Setup Instructions
-
-## 🚀 Quick Start
-
-### 1. Install Dependencies
-```bash
-npm install firebase
-# or if using yarn
-yarn add firebase
-```
-
-### 2. Firebase Console Setup
-
-#### Enable Authentication
-1. Go to Firebase Console → Authentication
-2. Click "Get started"
-3. Go to "Sign-in method" tab
-4. Enable "Anonymous" provider
-5. Save changes
-
-#### Create Firestore Database
-1. Go to Firestore Database → "Create database"
-2. Choose "Start in production mode"
-3. Select your preferred region
-4. Click "Done"
-
-#### Enable Realtime Database (for presence)
-1. Go to Realtime Database → "Create database"
-2. Choose "Start in locked mode"
-3. Select your preferred region
-4. Click "Done"
-
-#### Set Security Rules
-
-**Firestore Rules:**
-Go to Firestore → Rules tab and replace with the provided rules.
-
-**Realtime Database Rules:**
-Go to Realtime Database → Rules tab and replace with the provided rules.
-
-### 3. Component Integration
-
-Replace your existing component with the complete version provided. Make sure all UI components from your component library are available.
-
-### 4. Test Your App
-
-1. **Create Couple Flow:**
-   - Enter your name
-   - Click "Create Invite Code"
-   - Share the 6-digit code
-
-2. **Join Couple Flow:**
-   - Open app in another browser/device
-   - Click "Join with Code"
-   - Enter partner's name and code
-   - Both should connect and see "paired" state
-
-3. **Real-time Features:**
-   - Add memories - should sync instantly
-   - Check presence status - should show online/offline
-   - Test offline/online behavior
-
-### 5. Production Deployment
-
-1. Build your Next.js app: `npm run build`
-2. Deploy to Vercel, Netlify, or your preferred platform
-3. Update Firebase authorized domains if needed
-
-## ✅ Features Included
-
-- ✅ Real Firebase v10 integration
-- ✅ Anonymous authentication
-- ✅ Invite code system (24-hour expiry)
-- ✅ Real-time presence tracking
-- ✅ Memory sharing with images
-- ✅ Proper error handling
-- ✅ Connection status indicators
-- ✅ Mobile-responsive design
-- ✅ Secure Firestore rules
-- ✅ Production-ready code
-
-## 🛡️ Security
-
-- Only authenticated users can create/join couples
-- Strict access control - only couple members can see their data
-- Invite codes expire in 24 hours
-- No external access to private memories
-- Real-time presence without exposing sensitive data
-
-## 📱 Usage
-
-Perfect for couples who want to:
-- Share daily moments privately
-- Stay connected with real-time presence
-- Keep memories in a secure, private space
-- Have a simple, beautiful interface
-
-Your app is now production-ready with real Firebase backend! 💕
-'''
-
-# Save all files
-files = {
-    'CouplesAppComplete.tsx': react_component,
-    'firestore.rules': firestore_rules,
-    'database.rules.json': rtdb_rules,
-    'package.json': package_json,
-    'SETUP.md': setup_instructions
-}
-
-for filename, content in files.items():
-    with open(filename, 'w', encoding='utf-8') as f:
-        f.write(content)
-
-print("✅ Complete Production-Ready Couples App Created!")
-print("\n📁 Files Generated:")
-print("1. CouplesAppComplete.tsx - Main React component")
-print("2. firestore.rules - Firestore security rules")
-print("3. database.rules.json - Realtime Database rules")
-print("4. package.json - Dependencies")
-print("5. SETUP.md - Complete setup instructions")
-
-print("\n🔥 Features Included:")
-print("✅ Real Firebase v10 integration with your config")
-print("✅ Anonymous authentication")
-print("✅ Create/Join couple with invite codes")
-print("✅ Real-time presence tracking")
-print("✅ Memory sharing with photo support")
-print("✅ Proper error handling & loading states")
-print("✅ Mobile-responsive design")
-print("✅ Production-ready security rules")
-print("✅ Connection status indicators")
-print("✅ 24-hour invite expiry")
-
-print("\n🚀 Next Steps:")
-print("1. Copy CouplesAppComplete.tsx to your React project")
-print("2. Install Firebase: npm install firebase")
-print("3. Set up Firebase Console (Auth, Firestore, Realtime DB)")
-print("4. Apply the security rules provided")
-print("5. Test create/join couple flows")
-print("6. Deploy and share with your partner!")
-
-print(f"\n💕 Your Firebase Project: my-app-8205a")
-print("Ready for real-time couple syncing!")
