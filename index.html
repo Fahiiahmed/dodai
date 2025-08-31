@@ -11,7 +11,7 @@
 </head>
 <body>
     <!-- Loading Screen -->
-    <div id="loadingScreen" class="loading-screen">
+    <div id="loadingScreen" class="screen loading-screen">
         <div class="loading-animation">
             <div class="heart-loader">💕</div>
             <p>Loading your love story...</p>
@@ -19,7 +19,7 @@
     </div>
 
     <!-- Pairing Screen -->
-    <div id="pairingScreen" class="pairing-screen hidden">
+    <div id="pairingScreen" class="screen pairing-screen hidden">
         <div class="pairing-container">
             <div class="pairing-header">
                 <h1 class="pairing-title">💕 Our Connection</h1>
@@ -43,36 +43,43 @@
             <!-- Create Couple Form -->
             <div id="createCoupleForm" class="couple-form hidden">
                 <h3>Create Your Couple Space</h3>
-                <input type="text" id="yourName" placeholder="Your name">
-                <button onclick="createCouple()">Generate Code</button>
+                <input type="text" id="yourName" placeholder="Your name" maxlength="30">
+                <button onclick="createCouple()" class="primary-btn">Generate Code</button>
                 <div id="generatedCode" class="generated-code hidden">
                     <p>Share this code with your partner:</p>
                     <div class="invite-code" id="inviteCode"></div>
+                    <p class="invite-instructions">Send this code to your partner so they can join!</p>
                 </div>
             </div>
 
             <!-- Join Couple Form -->
             <div id="joinCoupleForm" class="couple-form hidden">
                 <h3>Join Your Partner</h3>
-                <input type="text" id="partnerName" placeholder="Your name">
-                <input type="text" id="joinCode" placeholder="Enter invite code">
-                <button onclick="joinCouple()">Join</button>
+                <input type="text" id="partnerName" placeholder="Your name" maxlength="30">
+                <input type="text" id="joinCode" placeholder="Enter invite code" maxlength="6" style="text-transform: uppercase;">
+                <button onclick="joinCouple()" class="primary-btn">Join</button>
             </div>
+
+            <button id="backButton" class="back-btn hidden" onclick="hideAllForms()">← Back</button>
         </div>
     </div>
 
     <!-- Success Screen -->
-    <div id="successScreen" class="success-screen hidden">
+    <div id="successScreen" class="screen success-screen hidden">
         <div class="success-content">
             <div class="success-animation">💕</div>
             <h2>Connected!</h2>
             <p>You're now synced with your partner</p>
-            <button onclick="enterApp()">Start Your Journey</button>
+            <div class="loading-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
         </div>
     </div>
 
     <!-- Main App -->
-    <div id="app" class="app hidden">
+    <div id="app" class="screen app hidden">
         <!-- Sync Status -->
         <div id="syncStatus" class="sync-status hidden">
             <span class="sync-icon">🔄</span>
@@ -135,16 +142,22 @@
             </div>
 
             <div id="addMemoryForm" class="add-form hidden">
-                <input type="text" id="memoryTitle" placeholder="Memory title">
-                <textarea id="memoryDescription" placeholder="Describe this moment..."></textarea>
+                <input type="text" id="memoryTitle" placeholder="Memory title" maxlength="100">
+                <textarea id="memoryDescription" placeholder="Describe this moment..." maxlength="500"></textarea>
                 <input type="file" id="memoryPhotos" multiple accept="image/*" capture="environment">
                 <div class="form-actions">
-                    <button onclick="saveMemory()">Save Memory</button>
-                    <button onclick="hideAddMemory()">Cancel</button>
+                    <button onclick="saveMemory()" class="primary-btn">Save Memory</button>
+                    <button onclick="hideAddMemory()" class="secondary-btn">Cancel</button>
                 </div>
             </div>
 
-            <div id="memoriesGrid" class="memories-grid"></div>
+            <div id="memoriesGrid" class="memories-grid">
+                <div class="empty-state">
+                    <div class="empty-icon">📸</div>
+                    <h3>No memories yet</h3>
+                    <p>Start creating beautiful memories together!</p>
+                </div>
+            </div>
         </section>
 
         <!-- Other sections placeholders -->
@@ -152,21 +165,30 @@
             <div class="section-header">
                 <h2>Love Notes</h2>
             </div>
-            <p>Love notes feature coming soon...</p>
+            <div class="coming-soon">
+                <h3>💌 Coming Soon</h3>
+                <p>Send sweet messages to each other in real-time</p>
+            </div>
         </section>
 
         <section id="moodsSection" class="section hidden">
             <div class="section-header">
                 <h2>Our Moods</h2>
             </div>
-            <p>Mood tracking feature coming soon...</p>
+            <div class="coming-soon">
+                <h3>😊 Coming Soon</h3>
+                <p>Track and share your daily moods together</p>
+            </div>
         </section>
 
         <section id="bucketSection" class="section hidden">
             <div class="section-header">
                 <h2>Bucket List</h2>
             </div>
-            <p>Bucket list feature coming soon...</p>
+            <div class="coming-soon">
+                <h3>🎯 Coming Soon</h3>
+                <p>Create shared goals and dreams to achieve together</p>
+            </div>
         </section>
 
         <!-- Bottom Navigation -->
@@ -179,13 +201,7 @@
         </nav>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
-
-    <!-- App Script -->
-    <script src="app.js"></script>
+    <!-- Firebase SDK v12 - Modular -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>

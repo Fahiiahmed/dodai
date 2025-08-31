@@ -1,72 +1,96 @@
 # 💕 Our Connection - Couples App
 
-A beautiful, real-time syncing couples app built with Firebase and vanilla JavaScript.
+A beautiful, real-time syncing couples app built with Firebase v12 and vanilla JavaScript.
 
-## Features
+## ✨ Features
 
 - 🔄 **Real-time sync** between two devices
-- 📸 **Photo memories** with upload and compression
-- 💌 **Love notes** with instant messaging
-- 😊 **Mood tracking** with partner comparison  
-- 🎯 **Collaborative bucket list**
-- 🔗 **Simple pairing** with invite codes
+- 👫 **Simple pairing** with 6-digit invite codes
+- 📸 **Photo memories** with upload capability
+- 👥 **Presence tracking** - see when your partner is online
+- 🔐 **Anonymous authentication** - no personal info required
 - 📱 **Mobile-first** responsive design
-- 🌐 **Works offline** with background sync
+- 🌐 **Progressive Web App** (PWA) support
 
-## Setup Instructions
+## 🚀 Live Demo
 
-### 1. Create Firebase Project
+Experience the magic at: [Your GitHub Pages URL]
+
+## 🛠️ Setup Instructions
+
+### 1. Firebase Project Setup
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Click "Add project"
-3. Name your project (e.g., "couples-app-sync")
-4. Disable Google Analytics
-5. Click "Create project"
+2. Click **"Add project"**
+3. Project name: `couples-app-v2` (or your choice)
+4. Disable Google Analytics (optional)
+5. Click **"Create project"**
 
 ### 2. Enable Firebase Services
 
-1. **Firestore Database**:
-   - Go to "Firestore Database" → "Create database"
-   - Start in production mode
-   - Choose your region
+#### Authentication
+1. Go to **Authentication** → **Get started**
+2. Click **"Sign-in method"** tab
+3. Enable **"Anonymous"** provider
+4. Save changes
 
-2. **Storage**:
-   - Go to "Storage" → "Get started"  
-   - Start in production mode
+#### Firestore Database
+1. Go to **Firestore Database** → **Create database**
+2. Start in **production mode**
+3. Choose your region (closest to your location)
+4. Click **"Done"**
 
-3. **Authentication**:
-   - Go to "Authentication" → "Get started"
-   - Enable "Anonymous" sign-in method
+#### Storage (Optional for photos)
+1. Go to **Storage** → **Get started**
+2. Start in **production mode**
+3. Choose same region as Firestore
+4. Click **"Done"**
 
-### 3. Add Web App to Firebase
+### 3. Add Web App
 
-1. In your Firebase project, click the web icon `</>`
-2. App nickname: "Couples Connection App"
-3. Check "Also set up Firebase Hosting"
-4. Click "Register app"
-5. **Copy the Firebase configuration**
+1. In Firebase project overview, click web icon `</>`
+2. App nickname: `"Couples Connection"`
+3. Don't check Firebase Hosting (we'll use GitHub Pages)
+4. Click **"Register app"**
+5. **Copy your Firebase configuration**
 
-### 4. Update Firebase Config
+### 4. Update Your Firebase Config
 
-1. Open `app.js`
-2. Replace the `firebaseConfig` object with your actual config
+1. Open `app.js` file
+2. Replace the `firebaseConfig` object with your config:
 
-### 5. Set Security Rules
+```javascript
+const firebaseConfig = {
+  apiKey: "your-api-key",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.firebasestorage.app",
+  messagingSenderId: "your-sender-id",
+  appId: "your-app-id"
+};
+```
 
-**Firestore Rules:**
+### 5. Set Firestore Security Rules
+
+1. Go to **Firestore Database** → **Rules** tab
+2. Replace existing rules:
+
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
     }
 
     match /couples/{coupleId} {
-      allow read, write: if request.auth != null && 
-        request.auth.uid in resource.data.members.keys();
+      allow create: if request.auth != null;
+      allow read, write: if request.auth != null &&
+        (request.auth.uid in resource.data.members.keys() ||
+         request.auth.uid in request.resource.data.members.keys());
 
-      match /{document=**} {
+      match /{subCollection}/{document} {
         allow read, write: if request.auth != null && 
           request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.members.keys();
       }
@@ -75,81 +99,124 @@ service cloud.firestore {
 }
 ```
 
-**Storage Rules:**
-```javascript
-rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /couples/{coupleId}/{allPaths=**} {
-      allow read, write: if request.auth != null &&
-        request.auth.uid in firestore.get(/databases/(default)/documents/couples/$(coupleId)).data.members.keys();
-    }
-  }
-}
-```
+3. Click **"Publish"**
 
 ### 6. Deploy to GitHub Pages
 
-1. Create new GitHub repository
-2. Upload all files to the repository
-3. Go to Settings → Pages
-4. Source: Deploy from branch `main`
-5. Your app will be available at: `https://username.github.io/repository-name`
+1. Create new GitHub repository: `couples-app`
+2. Upload all project files:
+   - `index.html`
+   - `app.js` (with your Firebase config)
+   - `style.css`
+   - `manifest.json`
+   - `README.md`
+3. Go to **Settings** → **Pages**
+4. Source: **Deploy from a branch**
+5. Branch: **main** / **root**
+6. Save and wait 5-10 minutes
 
-### 7. Usage
+## 📱 How to Use
 
-1. **First partner**: Open the app → "Create Couple" → Share the 6-digit code
-2. **Second partner**: Open the app → "Join Couple" → Enter the code
-3. **Start using**: Add memories, send notes, track moods, and build your bucket list together!
+### For the First Partner:
+1. Open the app URL
+2. Click **"Create Couple"**
+3. Enter your name
+4. Share the 6-digit code with your partner
 
-## Security & Privacy
+### For the Second Partner:
+1. Open the same app URL
+2. Click **"Join Couple"**
+3. Enter your name and the 6-digit code
+4. You're now connected!
 
-- ✅ Data isolated to your couple only
-- ✅ Encrypted data transmission (HTTPS)
-- ✅ Secure Firebase authentication
-- ✅ Photos stored in private Firebase Storage
-- ✅ Anonymous authentication (no personal info required)
+### Adding Memories:
+1. Go to **Memories** section (📸)
+2. Click **"+ Add Memory"**
+3. Enter title and description
+4. Save to sync with your partner instantly
 
-## Firebase Usage (Free Tier)
+## 🏗️ Project Structure
 
-The app is designed to stay within Firebase's free limits:
-- **Storage**: 5 GB (plenty for photos)
-- **Database**: 50K reads/day, 20K writes/day
-- **Authentication**: 10K sign-ins/month
+```
+couples-app/
+├── index.html          # Main HTML structure
+├── app.js             # Firebase v12 integration & app logic
+├── style.css          # Modern responsive styles
+├── manifest.json      # PWA configuration
+└── README.md          # This file
+```
 
-Perfect for a two-person couples app! 💕
+## 🔧 Technical Details
 
-## Development
+- **Firebase SDK**: v12.2.1 (Modular)
+- **Authentication**: Anonymous
+- **Database**: Cloud Firestore
+- **Storage**: Firebase Storage (for future photo uploads)
+- **Hosting**: GitHub Pages
+- **Framework**: Vanilla JavaScript (no dependencies)
 
-### Local Development
+## 🚦 Firebase Usage (Free Tier)
 
-1. Clone the repository
-2. Update Firebase config in `app.js`  
-3. Serve the files with any local server:
-   ```bash
-   # Using Python
-   python -m http.server 8000
+Perfect for couples! The app stays within Firebase free limits:
+- **Firestore**: 50K reads/20K writes per day
+- **Storage**: 5 GB total storage
+- **Authentication**: 10K sign-ins per month
 
-   # Using Node.js
-   npx serve .
-   ```
+## 🔒 Security & Privacy
 
-## Customization
+- ✅ Anonymous authentication (no personal data required)
+- ✅ Data encrypted in transit (HTTPS)
+- ✅ Isolated couple data (only you and partner can access)
+- ✅ Secure Firestore rules
+- ✅ Real-time presence tracking
 
-The app is built with vanilla JavaScript and CSS - easy to customize:
-- Colors and themes in CSS variables
-- Features can be added/removed easily
-- Mobile-first responsive design
-- Modern glassmorphism UI
+## 🎨 Customization
 
-## Support
+The app uses CSS variables for easy theming:
 
-If you encounter any issues:
-1. Check the browser console for errors
-2. Verify your Firebase configuration
-3. Ensure all Firebase services are enabled
-4. Check that your Firebase project has the correct security rules
+```css
+:root {
+    --primary-color: #FF6B9D;    /* Pink */
+    --secondary-color: #C77DFF;  /* Purple */
+    --accent-color: #FFD93D;     /* Yellow */
+}
+```
+
+## 🐛 Troubleshooting
+
+### App won't load:
+- Check Firebase config in `app.js`
+- Verify all Firebase services are enabled
+- Check browser console for errors
+
+### Can't create/join couple:
+- Verify Firestore rules are published
+- Check Authentication is enabled
+- Ensure both users have internet connection
+
+### Partner showing offline:
+- Both users need to be on the app
+- Check Firestore real-time listeners
+- Verify presence system is working
+
+## 🔮 Planned Features
+
+- [ ] Photo upload for memories
+- [ ] Love notes messaging
+- [ ] Mood tracking with history
+- [ ] Shared bucket list
+- [ ] Anniversary date setting
+- [ ] Push notifications
+- [ ] Custom themes
+
+## 💝 Made with Love
+
+Created for couples who want to stay digitally connected. Perfect for:
+- Long-distance relationships
+- Daily connection reminders  
+- Shared memory keeping
+- Real-time presence awareness
 
 ---
 
-Made with 💕 for couples who want to stay connected digitally!
+**Have questions?** Open an issue or contribute to make this even better! 💕

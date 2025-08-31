@@ -1,157 +1,265 @@
 // ==========================================
-// FIREBASE CONFIGURATION - UPDATED WITH YOUR REAL CONFIG
+// FIREBASE CONFIGURATION & INITIALIZATION
 // ==========================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, serverTimestamp, query, where, collection, getDocs, onSnapshot, orderBy, addDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
+
+// Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBPy59JZclpS2CbJgsYykGx5jJ0fjg8p7A",
-  authDomain: "our-app-833bd.firebaseapp.com",
-  projectId: "our-app-833bd",
-  storageBucket: "our-app-833bd.firebasestorage.app",
-  messagingSenderId: "298758161551",
-  appId: "1:298758161551:web:e395cc0c095d23a45a5cfa",
-  measurementId: "G-ZR6793B86F"
+  apiKey: "AIzaSyC-zFYep-gFDuTDLs1JMDWTiY0IedKwFGw",
+  authDomain: "my-app-8205a.firebaseapp.com",
+  projectId: "my-app-8205a",
+  storageBucket: "my-app-8205a.firebasestorage.app",
+  messagingSenderId: "810403652444",
+  appId: "1:810403652444:web:f6ed34b1d12e5ca534d799"
 };
 
-// Initialize Firebase (using v8 compat SDK for simplicity)
-firebase.initializeApp(firebaseConfig);
-
-// Firebase services
-const db = firebase.firestore();
-const storage = firebase.storage();
-const auth = firebase.auth();
-
-// Enable offline persistence
-db.enablePersistence().catch(console.error);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
 
 // ==========================================
 // APP STATE
 // ==========================================
 let currentUser = null;
 let currentCouple = null;
+let partnerUid = null;
 let unsubscribeFunctions = [];
 
 // ==========================================
 // APP INITIALIZATION
 // ==========================================
 document.addEventListener('DOMContentLoaded', function() {
-    // Show loading screen
+    console.log('App initialized');
     showScreen('loadingScreen');
-
-    // Initialize auth listener
-    auth.onAuthStateChanged(handleAuthStateChange);
-
-    // Setup navigation
     setupNavigation();
-
-    // Setup form handlers
     setupFormHandlers();
 });
 
 // ==========================================
-// AUTHENTICATION & PAIRING
+// AUTHENTICATION
 // ==========================================
-function handleAuthStateChange(user) {
+onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
-        console.log('User signed in:', user.uid);
+        console.log('User signed in:', currentUser.uid);
+        setPresenceOnline();
         checkCoupleStatus();
     } else {
         console.log('Signing in anonymously...');
-        // Sign in anonymously
-        auth.signInAnonymously().catch(error => {
+        signInAnonymously(auth).catch(error => {
             console.error('Error signing in:', error);
+            alert('Error connecting to app. Please refresh.');
         });
+    }
+});
+
+async function checkCoupleStatus() {
+    try {
+        const userRef = doc(db, 'users', currentUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists() && userSnap.data().coupleId) {
+            currentCouple = userSnap.data().coupleId;
+            console.log('User is part of couple:', currentCouple);
+
+            // Get partner info
+            await loadPartnerInfo();
+            loadCoupleData();
+            showScreen('app');
+        } else {
+            console.log('User not part of any couple');
+            showScreen('pairingScreen');
+        }
+    } catch (error) {
+        console.error('Error checking couple status:', error);
+        showScreen('pairingScreen');
     }
 }
 
-function checkCoupleStatus() {
-    console.log('Checking couple status for user:', currentUser.uid);
+async function loadPartnerInfo() {
+    try {
+        const coupleRef = doc(db, 'couples', currentCouple);
+        const coupleSnap = await getDoc(coupleRef);
 
-    // Check if user is part of a couple
-    db.collection('users').doc(currentUser.uid).get()
-        .then(doc => {
-            if (doc.exists && doc.data().coupleId) {
-                console.log('User is part of couple:', doc.data().coupleId);
-                currentCouple = doc.data().coupleId;
-                loadCoupleData();
-                showScreen('app');
-            } else {
-                console.log('User not part of any couple, showing pairing screen');
-                showScreen('pairingScreen');
+        if (coupleSnap.exists()) {
+            const coupleData = coupleSnap.data();
+            const members = coupleData.members || {};
+
+            // Find partner UID (not current user)
+            partnerUid = Object.keys(members).find(uid => uid !== currentUser.uid);
+
+            if (partnerUid) {
+                console.log('Partner found:', partnerUid);
+                listenPartnerPresence();
             }
-        })
-        .catch(error => {
-            console.error('Error checking couple status:', error);
-            showScreen('pairingScreen');
-        });
+        }
+    } catch (error) {
+        console.error('Error loading partner info:', error);
+    }
 }
 
-function showCreateCouple() {
-    document.getElementById('createCoupleForm').classList.remove('hidden');
-    document.getElementById('joinCoupleForm').classList.add('hidden');
+// ==========================================
+// PRESENCE SYSTEM
+// ==========================================
+async function setPresenceOnline() {
+    if (!currentUser) return;
+
+    try {
+        const userRef = doc(db, 'users', currentUser.uid);
+        await setDoc(userRef, {
+            status: 'online',
+            last_changed: serverTimestamp()
+        }, { merge: true });
+        console.log('Presence set to online');
+    } catch (error) {
+        console.error('Error setting presence:', error);
+    }
 }
 
-function showJoinCouple() {
-    document.getElementById('joinCoupleForm').classList.remove('hidden');
-    document.getElementById('createCoupleForm').classList.add('hidden');
+async function setPresenceOffline() {
+    if (!currentUser) return;
+
+    try {
+        const userRef = doc(db, 'users', currentUser.uid);
+        await setDoc(userRef, {
+            status: 'offline',
+            last_changed: serverTimestamp()
+        }, { merge: true });
+        console.log('Presence set to offline');
+    } catch (error) {
+        console.error('Error setting presence:', error);
+    }
 }
 
-function createCouple() {
+function listenPartnerPresence() {
+    if (!partnerUid) return;
+
+    const partnerRef = doc(db, 'users', partnerUid);
+    const unsubscribe = onSnapshot(partnerRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            updatePartnerStatusUI(data.status === 'online');
+        } else {
+            updatePartnerStatusUI(false);
+        }
+    });
+
+    unsubscribeFunctions.push(unsubscribe);
+}
+
+function updatePartnerStatusUI(isOnline) {
+    const partnerStatusElem = document.getElementById('partnerStatus');
+    if (partnerStatusElem) {
+        if (isOnline) {
+            partnerStatusElem.textContent = 'Partner online';
+            partnerStatusElem.classList.add('online');
+        } else {
+            partnerStatusElem.textContent = 'Partner offline';
+            partnerStatusElem.classList.remove('online');
+        }
+    }
+}
+
+// Handle page unload
+window.addEventListener('beforeunload', setPresenceOffline);
+window.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        setPresenceOffline();
+    } else {
+        setPresenceOnline();
+    }
+});
+
+// ==========================================
+// COUPLE CREATION & JOINING
+// ==========================================
+function generateInviteCode() {
+    return Math.random().toString(36).substr(2, 6).toUpperCase();
+}
+
+function generateCoupleId() {
+    return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+}
+
+async function createCouple() {
     const yourName = document.getElementById('yourName').value.trim();
+
     if (!yourName) {
         alert('Please enter your name');
         return;
     }
 
-    console.log('Creating couple for user:', yourName);
+    if (!currentUser) {
+        alert('Please wait for app to load');
+        return;
+    }
+
+    console.log('Creating couple for:', yourName);
     showSyncStatus('Creating your couple space...');
 
-    const coupleId = generateCoupleId();
-    const inviteCode = generateInviteCode();
+    try {
+        const coupleId = generateCoupleId();
+        const inviteCode = generateInviteCode();
 
-    // Create couple document
-    db.collection('couples').doc(coupleId).set({
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        inviteCode: inviteCode,
-        members: {
-            [currentUser.uid]: yourName
-        },
-        memberCount: 1,
-        anniversaryDate: null,
-        settings: {
-            theme: 'romantic',
-            partner1Name: yourName,
-            partner2Name: null
-        }
-    }).then(() => {
-        console.log('Couple created successfully');
-        // Update user document
-        return db.collection('users').doc(currentUser.uid).set({
+        // Create couple document
+        const coupleRef = doc(db, 'couples', coupleId);
+        await setDoc(coupleRef, {
+            createdAt: serverTimestamp(),
+            inviteCode: inviteCode,
+            members: {
+                [currentUser.uid]: yourName
+            },
+            memberCount: 1,
+            anniversaryDate: null,
+            settings: {
+                theme: 'romantic',
+                partner1Name: yourName,
+                partner2Name: null
+            }
+        });
+
+        // Create/update user document
+        const userRef = doc(db, 'users', currentUser.uid);
+        await setDoc(userRef, {
             coupleId: coupleId,
             name: yourName,
             role: 'creator'
-        });
-    }).then(() => {
-        console.log('User document updated');
+        }, { merge: true });
+
+        // Set presence online
+        await setPresenceOnline();
+
+        currentCouple = coupleId;
+
         // Show invite code
         document.getElementById('inviteCode').textContent = inviteCode;
         document.getElementById('generatedCode').classList.remove('hidden');
 
-        currentCouple = coupleId;
         hideSyncStatus();
+        console.log('Couple created successfully');
 
-        // Auto-enter app after showing code
+        // Auto-transition after showing code
         setTimeout(() => {
             showScreen('successScreen');
-            setTimeout(() => enterApp(), 2000);
+            setTimeout(() => {
+                loadCoupleData();
+                showScreen('app');
+            }, 2000);
         }, 3000);
-    }).catch(error => {
+
+    } catch (error) {
         console.error('Error creating couple:', error);
-        alert('Error creating couple. Please try again.');
+        alert('Error creating couple: ' + error.message);
         hideSyncStatus();
-    });
+    }
 }
 
-function joinCouple() {
+async function joinCouple() {
     const partnerName = document.getElementById('partnerName').value.trim();
     const joinCode = document.getElementById('joinCode').value.trim().toUpperCase();
 
@@ -160,73 +268,83 @@ function joinCouple() {
         return;
     }
 
+    if (!currentUser) {
+        alert('Please wait for app to load');
+        return;
+    }
+
     console.log('Joining couple with code:', joinCode);
     showSyncStatus('Connecting to your partner...');
 
-    // Find couple by invite code
-    db.collection('couples')
-        .where('inviteCode', '==', joinCode)
-        .get()
-        .then(querySnapshot => {
-            if (querySnapshot.empty) {
-                alert('Invalid invite code. Please check and try again.');
-                hideSyncStatus();
-                return;
-            }
+    try {
+        // Find couple by invite code
+        const couplesRef = collection(db, 'couples');
+        const q = query(couplesRef, where('inviteCode', '==', joinCode));
+        const querySnapshot = await getDocs(q);
 
-            const coupleDoc = querySnapshot.docs[0];
-            const coupleId = coupleDoc.id;
-            const coupleData = coupleDoc.data();
-
-            console.log('Found couple:', coupleId);
-
-            // Check if couple already has 2 members
-            if (coupleData.memberCount >= 2) {
-                alert('This couple is already full. Please check your invite code.');
-                hideSyncStatus();
-                return;
-            }
-
-            // Add user to couple
-            const updatedMembers = {
-                ...coupleData.members,
-                [currentUser.uid]: partnerName
-            };
-
-            const updatedSettings = {
-                ...coupleData.settings,
-                partner2Name: partnerName
-            };
-
-            return db.collection('couples').doc(coupleId).update({
-                members: updatedMembers,
-                memberCount: 2,
-                settings: updatedSettings
-            }).then(() => {
-                return db.collection('users').doc(currentUser.uid).set({
-                    coupleId: coupleId,
-                    name: partnerName,
-                    role: 'partner'
-                });
-            }).then(() => {
-                console.log('Successfully joined couple');
-                currentCouple = coupleId;
-                hideSyncStatus();
-                showScreen('successScreen');
-                setTimeout(() => enterApp(), 2000);
-            });
-        })
-        .catch(error => {
-            console.error('Error joining couple:', error);
-            alert('Error joining couple. Please try again.');
+        if (querySnapshot.empty) {
+            alert('Invalid invite code. Please check and try again.');
             hideSyncStatus();
-        });
-}
+            return;
+        }
 
-function enterApp() {
-    console.log('Entering main app');
-    loadCoupleData();
-    showScreen('app');
+        const coupleDoc = querySnapshot.docs[0];
+        const coupleId = coupleDoc.id;
+        const coupleData = coupleDoc.data();
+
+        // Check if couple already has 2 members
+        if (coupleData.memberCount >= 2) {
+            alert('This couple is already full. Please check your invite code.');
+            hideSyncStatus();
+            return;
+        }
+
+        // Update couple document with new member
+        const updatedMembers = {
+            ...coupleData.members,
+            [currentUser.uid]: partnerName
+        };
+
+        const updatedSettings = {
+            ...coupleData.settings,
+            partner2Name: partnerName
+        };
+
+        const coupleRef = doc(db, 'couples', coupleId);
+        await setDoc(coupleRef, {
+            members: updatedMembers,
+            memberCount: 2,
+            settings: updatedSettings
+        }, { merge: true });
+
+        // Create/update user document
+        const userRef = doc(db, 'users', currentUser.uid);
+        await setDoc(userRef, {
+            coupleId: coupleId,
+            name: partnerName,
+            role: 'partner'
+        }, { merge: true });
+
+        // Set presence online
+        await setPresenceOnline();
+
+        currentCouple = coupleId;
+
+        console.log('Successfully joined couple');
+        hideSyncStatus();
+
+        showScreen('successScreen');
+        setTimeout(() => {
+            loadPartnerInfo();
+            loadCoupleData();
+            showScreen('app');
+        }, 2000);
+
+    } catch (error) {
+        console.error('Error joining couple:', error);
+        alert('Error joining couple: ' + error.message);
+        hideSyncStatus();
+    }
 }
 
 // ==========================================
@@ -236,41 +354,61 @@ function loadCoupleData() {
     if (!currentCouple) return;
 
     console.log('Loading couple data for:', currentCouple);
-
-    // Setup real-time listeners
     setupMemoriesListener();
-
-    // Load anniversary date
     loadAnniversaryDate();
-
-    // Load couple settings
-    loadCoupleSettings();
 }
 
 function setupMemoriesListener() {
-    console.log('Setting up memories listener');
+    if (!currentCouple) return;
 
-    const unsubscribe = db.collection('couples')
-        .doc(currentCouple)
-        .collection('memories')
-        .orderBy('timestamp', 'desc')
-        .onSnapshot(querySnapshot => {
-            const memories = [];
-            querySnapshot.forEach(doc => {
-                const data = doc.data();
-                memories.push({ 
-                    id: doc.id, 
-                    ...data,
-                    timestamp: data.timestamp ? data.timestamp.toDate() : new Date()
-                });
+    const memoriesRef = collection(db, 'couples', currentCouple, 'memories');
+    const q = query(memoriesRef, orderBy('timestamp', 'desc'));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const memories = [];
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            memories.push({
+                id: doc.id,
+                ...data,
+                timestamp: data.timestamp ? data.timestamp.toDate() : new Date()
             });
-            console.log('Memories updated:', memories.length);
-            renderMemories(memories);
-        }, error => {
-            console.error('Error listening to memories:', error);
         });
 
+        console.log('Memories updated:', memories.length);
+        renderMemories(memories);
+    }, (error) => {
+        console.error('Error listening to memories:', error);
+    });
+
     unsubscribeFunctions.push(unsubscribe);
+}
+
+async function loadAnniversaryDate() {
+    if (!currentCouple) return;
+
+    try {
+        const coupleRef = doc(db, 'couples', currentCouple);
+        const coupleSnap = await getDoc(coupleRef);
+
+        if (coupleSnap.exists()) {
+            const data = coupleSnap.data();
+            if (data.anniversaryDate) {
+                const anniversaryDate = new Date(data.anniversaryDate);
+                const today = new Date();
+                const diffTime = Math.abs(today - anniversaryDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                document.getElementById('daysCounter').textContent = diffDays;
+                document.getElementById('anniversaryDate').textContent = `Since ${anniversaryDate.toLocaleDateString()}`;
+            } else {
+                document.getElementById('daysCounter').textContent = '?';
+                document.getElementById('anniversaryDate').textContent = 'Set your anniversary date';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading anniversary date:', error);
+    }
 }
 
 // ==========================================
@@ -278,7 +416,7 @@ function setupMemoriesListener() {
 // ==========================================
 function showAddMemory() {
     document.getElementById('addMemoryForm').classList.remove('hidden');
-    document.querySelector('[data-section="memoriesSection"]')?.scrollIntoView();
+    document.querySelector('#addMemoryForm').scrollIntoView();
 }
 
 function hideAddMemory() {
@@ -292,10 +430,14 @@ function hideAddMemory() {
 async function saveMemory() {
     const title = document.getElementById('memoryTitle').value.trim();
     const description = document.getElementById('memoryDescription').value.trim();
-    const photosInput = document.getElementById('memoryPhotos');
 
     if (!title) {
         alert('Please enter a memory title');
+        return;
+    }
+
+    if (!currentCouple) {
+        alert('Not connected to couple');
         return;
     }
 
@@ -303,35 +445,22 @@ async function saveMemory() {
     showSyncStatus('Saving memory...');
 
     try {
-        // Upload photos if any
-        const photoUrls = [];
-        if (photosInput.files.length > 0) {
-            console.log('Uploading', photosInput.files.length, 'photos');
-            for (let file of photosInput.files) {
-                const compressedFile = await compressImage(file);
-                const photoUrl = await uploadPhoto(compressedFile);
-                photoUrls.push(photoUrl);
-            }
-        }
-
-        // Get current user name
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        const userName = userDoc.data()?.name || 'Unknown';
+        const userRef = doc(db, 'users', currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        const userName = userSnap.exists() ? userSnap.data().name : 'Unknown';
 
         // Save memory to Firestore
-        await db.collection('couples')
-            .doc(currentCouple)
-            .collection('memories')
-            .add({
-                title: title,
-                description: description,
-                photos: photoUrls,
-                author: currentUser.uid,
-                authorName: userName,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                date: new Date().toISOString().split('T')[0],
-                favorited: false
-            });
+        const memoriesRef = collection(db, 'couples', currentCouple, 'memories');
+        await addDoc(memoriesRef, {
+            title: title,
+            description: description,
+            photos: [], // Photo upload will be implemented later
+            author: currentUser.uid,
+            authorName: userName,
+            timestamp: serverTimestamp(),
+            date: new Date().toISOString().split('T')[0],
+            favorited: false
+        });
 
         console.log('Memory saved successfully');
         hideAddMemory();
@@ -339,40 +468,9 @@ async function saveMemory() {
 
     } catch (error) {
         console.error('Error saving memory:', error);
-        alert('Error saving memory. Please try again.');
+        alert('Error saving memory: ' + error.message);
         hideSyncStatus();
     }
-}
-
-async function uploadPhoto(file) {
-    const fileName = Date.now() + '_' + Math.random().toString(36).substr(2, 9) + '.jpg';
-    const storageRef = storage.ref('couples/' + currentCouple + '/photos/' + fileName);
-
-    console.log('Uploading photo:', fileName);
-    const snapshot = await storageRef.put(file);
-    const downloadURL = await snapshot.ref.getDownloadURL();
-    console.log('Photo uploaded successfully:', downloadURL);
-    return downloadURL;
-}
-
-async function compressImage(file, maxWidth = 800, quality = 0.8) {
-    return new Promise((resolve) => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
-
-        img.onload = function() {
-            const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
-            canvas.width = img.width * ratio;
-            canvas.height = img.height * ratio;
-
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-            canvas.toBlob(resolve, 'image/jpeg', quality);
-        };
-
-        img.src = URL.createObjectURL(file);
-    });
 }
 
 function renderMemories(memories) {
@@ -391,7 +489,7 @@ function renderMemories(memories) {
     }
 
     grid.innerHTML = memories.map(memory => `
-        <div class="memory-card" onclick="viewMemory('${memory.id}')">
+        <div class="memory-card">
             ${memory.photos && memory.photos.length > 0 ? 
                 `<img src="${memory.photos[0]}" alt="${memory.title}" loading="lazy">` :
                 '<div class="memory-placeholder">📸</div>'
@@ -408,26 +506,14 @@ function renderMemories(memories) {
     `).join('');
 }
 
-function viewMemory(memoryId) {
-    console.log('Viewing memory:', memoryId);
-    // Implementation for full-screen memory view
-}
-
 // ==========================================
-// UTILITY FUNCTIONS
+// UI FUNCTIONS
 // ==========================================
-function generateCoupleId() {
-    return Date.now().toString() + Math.random().toString(36).substr(2, 9);
-}
-
-function generateInviteCode() {
-    return Math.random().toString(36).substr(2, 6).toUpperCase();
-}
-
 function showScreen(screenId) {
     console.log('Showing screen:', screenId);
+
     // Hide all screens
-    document.querySelectorAll('.loading-screen, .pairing-screen, .success-screen, .app').forEach(el => {
+    document.querySelectorAll('.screen').forEach(el => {
         el.classList.add('hidden');
     });
 
@@ -453,9 +539,30 @@ function hideSyncStatus() {
     }
 }
 
+function showCreateCouple() {
+    document.getElementById('createCoupleForm').classList.remove('hidden');
+    document.getElementById('joinCoupleForm').classList.add('hidden');
+    document.getElementById('backButton').classList.remove('hidden');
+}
+
+function showJoinCouple() {
+    document.getElementById('joinCoupleForm').classList.remove('hidden');
+    document.getElementById('createCoupleForm').classList.add('hidden');
+    document.getElementById('backButton').classList.remove('hidden');
+}
+
+function hideAllForms() {
+    document.getElementById('createCoupleForm').classList.add('hidden');
+    document.getElementById('joinCoupleForm').classList.add('hidden');
+    document.getElementById('generatedCode').classList.add('hidden');
+    document.getElementById('backButton').classList.add('hidden');
+    document.getElementById('yourName').value = '';
+    document.getElementById('partnerName').value = '';
+    document.getElementById('joinCode').value = '';
+}
+
 function setupNavigation() {
     document.addEventListener('click', (e) => {
-        // Handle navigation clicks
         if (e.target.matches('[data-section]')) {
             const section = e.target.dataset.section;
             showSection(section);
@@ -464,8 +571,6 @@ function setupNavigation() {
 }
 
 function showSection(sectionId) {
-    console.log('Showing section:', sectionId);
-
     // Hide all sections
     document.querySelectorAll('.section').forEach(section => {
         section.classList.remove('active');
@@ -489,57 +594,32 @@ function showSection(sectionId) {
 }
 
 function setupFormHandlers() {
-    // Form submission handlers will be added here
-}
-
-function loadAnniversaryDate() {
-    db.collection('couples').doc(currentCouple).get()
-        .then(doc => {
-            if (doc.exists) {
-                const data = doc.data();
-                if (data.anniversaryDate) {
-                    const anniversaryDate = new Date(data.anniversaryDate);
-                    const today = new Date();
-                    const diffTime = Math.abs(today - anniversaryDate);
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                    const counter = document.getElementById('daysCounter');
-                    const dateElement = document.getElementById('anniversaryDate');
-
-                    if (counter) counter.textContent = diffDays;
-                    if (dateElement) dateElement.textContent = `Since ${anniversaryDate.toLocaleDateString()}`;
-                } else {
-                    // No anniversary date set
-                    const counter = document.getElementById('daysCounter');
-                    const dateElement = document.getElementById('anniversaryDate');
-
-                    if (counter) counter.textContent = '?';
-                    if (dateElement) dateElement.textContent = 'Set your anniversary date';
-                }
+    // Handle enter key in forms
+    document.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            if (e.target.id === 'yourName') {
+                createCouple();
+            } else if (e.target.id === 'joinCode' || e.target.id === 'partnerName') {
+                joinCouple();
             }
-        })
-        .catch(console.error);
+        }
+    });
+
+    // Auto-uppercase join code
+    const joinCodeInput = document.getElementById('joinCode');
+    if (joinCodeInput) {
+        joinCodeInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+        });
+    }
 }
 
-function loadCoupleSettings() {
-    db.collection('couples').doc(currentCouple).get()
-        .then(doc => {
-            if (doc.exists) {
-                const data = doc.data();
-                console.log('Couple settings loaded:', data.settings);
-                // Update UI with couple settings
-            }
-        })
-        .catch(console.error);
-}
-
-// Global functions that need to be accessible from HTML
-window.showCreateCouple = showCreateCouple;
-window.showJoinCouple = showJoinCouple;
+// Make functions available globally for HTML onclick handlers
 window.createCouple = createCouple;
 window.joinCouple = joinCouple;
-window.enterApp = enterApp;
+window.showCreateCouple = showCreateCouple;
+window.showJoinCouple = showJoinCouple;
+window.hideAllForms = hideAllForms;
 window.showAddMemory = showAddMemory;
 window.hideAddMemory = hideAddMemory;
 window.saveMemory = saveMemory;
-window.viewMemory = viewMemory;
