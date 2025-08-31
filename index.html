@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💕 Our Connection - Couples App</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#FF6B9D">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-animation">
+            <div class="heart-loader">💕</div>
+            <p>Loading your love story...</p>
+        </div>
+    </div>
+
+    <!-- Pairing Screen -->
+    <div id="pairingScreen" class="pairing-screen hidden">
+        <div class="pairing-container">
+            <div class="pairing-header">
+                <h1 class="pairing-title">💕 Our Connection</h1>
+                <p class="pairing-subtitle">Connect with your partner</p>
+            </div>
+
+            <div class="pairing-options">
+                <div class="pairing-option" onclick="showCreateCouple()">
+                    <div class="option-icon">💕</div>
+                    <h3>Create Couple</h3>
+                    <p>Generate invite code</p>
+                </div>
+
+                <div class="pairing-option" onclick="showJoinCouple()">
+                    <div class="option-icon">🔗</div>
+                    <h3>Join Couple</h3>
+                    <p>Enter partner's code</p>
+                </div>
+            </div>
+
+            <!-- Create Couple Form -->
+            <div id="createCoupleForm" class="couple-form hidden">
+                <h3>Create Your Couple Space</h3>
+                <input type="text" id="yourName" placeholder="Your name">
+                <button onclick="createCouple()">Generate Code</button>
+                <div id="generatedCode" class="generated-code hidden">
+                    <p>Share this code with your partner:</p>
+                    <div class="invite-code" id="inviteCode"></div>
+                </div>
+            </div>
+
+            <!-- Join Couple Form -->
+            <div id="joinCoupleForm" class="couple-form hidden">
+                <h3>Join Your Partner</h3>
+                <input type="text" id="partnerName" placeholder="Your name">
+                <input type="text" id="joinCode" placeholder="Enter invite code">
+                <button onclick="joinCouple()">Join</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Screen -->
+    <div id="successScreen" class="success-screen hidden">
+        <div class="success-content">
+            <div class="success-animation">💕</div>
+            <h2>Connected!</h2>
+            <p>You're now synced with your partner</p>
+            <button onclick="enterApp()">Start Your Journey</button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="app hidden">
+        <!-- Sync Status -->
+        <div id="syncStatus" class="sync-status hidden">
+            <span class="sync-icon">🔄</span>
+            <span class="sync-text">Syncing...</span>
+        </div>
+
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>💕 Our Connection</h1>
+                <div class="partner-status">
+                    <span id="partnerStatus" class="partner-indicator">Partner offline</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Home Section -->
+        <main id="homeSection" class="section active">
+            <div class="hero-section">
+                <div class="anniversary-card">
+                    <h2>Together for</h2>
+                    <div class="days-counter" id="daysCounter">0</div>
+                    <span class="days-label">days</span>
+                    <p id="anniversaryDate">Set your anniversary date</p>
+                </div>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card" data-section="memoriesSection">
+                    <div class="card-icon">📸</div>
+                    <h3>Memories</h3>
+                    <p>Our special moments</p>
+                </div>
+
+                <div class="feature-card" data-section="notesSection">
+                    <div class="card-icon">💌</div>
+                    <h3>Love Notes</h3>
+                    <p>Sweet messages</p>
+                </div>
+
+                <div class="feature-card" data-section="moodsSection">
+                    <div class="card-icon">😊</div>
+                    <h3>Our Moods</h3>
+                    <p>How we're feeling</p>
+                </div>
+
+                <div class="feature-card" data-section="bucketSection">
+                    <div class="card-icon">🎯</div>
+                    <h3>Bucket List</h3>
+                    <p>Dreams & goals</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Memories Section -->
+        <section id="memoriesSection" class="section hidden">
+            <div class="section-header">
+                <h2>Our Memories</h2>
+                <button class="add-btn" onclick="showAddMemory()">+ Add Memory</button>
+            </div>
+
+            <div id="addMemoryForm" class="add-form hidden">
+                <input type="text" id="memoryTitle" placeholder="Memory title">
+                <textarea id="memoryDescription" placeholder="Describe this moment..."></textarea>
+                <input type="file" id="memoryPhotos" multiple accept="image/*" capture="environment">
+                <div class="form-actions">
+                    <button onclick="saveMemory()">Save Memory</button>
+                    <button onclick="hideAddMemory()">Cancel</button>
+                </div>
+            </div>
+
+            <div id="memoriesGrid" class="memories-grid"></div>
+        </section>
+
+        <!-- Other sections placeholders -->
+        <section id="notesSection" class="section hidden">
+            <div class="section-header">
+                <h2>Love Notes</h2>
+            </div>
+            <p>Love notes feature coming soon...</p>
+        </section>
+
+        <section id="moodsSection" class="section hidden">
+            <div class="section-header">
+                <h2>Our Moods</h2>
+            </div>
+            <p>Mood tracking feature coming soon...</p>
+        </section>
+
+        <section id="bucketSection" class="section hidden">
+            <div class="section-header">
+                <h2>Bucket List</h2>
+            </div>
+            <p>Bucket list feature coming soon...</p>
+        </section>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-section="homeSection">🏠</button>
+            <button class="nav-btn" data-section="memoriesSection">📸</button>
+            <button class="nav-btn" data-section="notesSection">💌</button>
+            <button class="nav-btn" data-section="moodsSection">😊</button>
+            <button class="nav-btn" data-section="bucketSection">🎯</button>
+        </nav>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
+
+    <!-- App Script -->
+    <script src="app.js"></script>
+</body>
+</html>

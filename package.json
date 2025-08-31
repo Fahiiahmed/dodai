@@ -1,0 +1,17 @@
+{
+  "name": "couples-connection-app",
+  "version": "1.0.0",
+  "description": "A real-time syncing couples app with Firebase",
+  "main": "index.html",
+  "scripts": {
+    "start": "serve .",
+    "build": "echo 'No build process needed for vanilla JS app'",
+    "deploy": "firebase deploy"
+  },
+  "keywords": ["couples", "firebase", "pwa", "real-time", "sync"],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.0.0"
+  }
+}
